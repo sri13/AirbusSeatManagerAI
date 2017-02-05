@@ -8,6 +8,7 @@ Created on Sun Feb  5 16:26:41 2017
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import sqlite3
+import os.path
 import sys
 
 
@@ -42,8 +43,8 @@ def check_empty_seats():
     
 # main function to make call to all functions
 if __name__ == "__main__":
-    database_name= "airline_seating.db" #sys.argv[1]
-    filename="bookings.csv"  #sys.argv[2]
+    database_name= os.path.dirname(__file__) + "/../airline_seating.db" #sys.argv[1]
+    filename=os.path.dirname(__file__) + "/../bookings.csv"  #sys.argv[2]
     
 # SQL connections.
     conn = sqlite3.connect(database_name)
@@ -56,8 +57,9 @@ if __name__ == "__main__":
     
     #Import bookings.CSV file
     bookings_df=read_csv(filename)
-    for each_booking in bookings_df:
-        print(each_booking)
+    
+    for index,row in bookings_df.iterrows():
+        print(index+1, row['booking_name'], row['booking_count'])
     
     
     
