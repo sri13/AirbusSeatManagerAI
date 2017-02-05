@@ -18,7 +18,10 @@ def print_data_from_seating(c):
         print(row)
     
     
-    
+#Airbus seat Layout
+def get_airbus_seat_layout(total_rows=15, total_seats=4):
+    airbus_seat_layout = np.zeros((total_rows,total_seats),dtype=np.int)
+    return airbus_seat_layout    
 
 
 # Passenger-Related Queries
@@ -26,7 +29,7 @@ def print_data_from_seating(c):
       
 # Functions for validation
 def read_csv(filename):
-    bookings_temp_df=pd.read_csv(filename)
+    bookings_temp_df=pd.read_csv(filename, names=['booking_name','booking_count'])
     return bookings_temp_df
     #bookings_df= pd.read_csv(filename)
 
@@ -39,18 +42,22 @@ def check_empty_seats():
     
 # main function to make call to all functions
 if __name__ == "__main__":
-    database_name= sys.argv[1]
-    filename=sys.argv[2]
+    database_name= "airline_seating.db" #sys.argv[1]
+    filename="bookings.csv"  #sys.argv[2]
     
 # SQL connections.
     conn = sqlite3.connect(database_name)
     c = conn.cursor()
-    print_data_from_seating(c)
+#    print_data_from_seating(c)
+   
+    #Create airbus layout in memory 
+    airbus_seat_layout=get_airbus_seat_layout()
+    #print(airbus_seat_layout)
     
-# Import CSV
+    #Import bookings.CSV file
     bookings_df=read_csv(filename)
-    
-    print(bookings_df)
+    for each_booking in bookings_df:
+        print(each_booking)
     
     
     
