@@ -12,12 +12,34 @@ import os.path
 import sys
 
 
+#global varibales
+SQL_CURSR = None
 
-# Reservation-Related Queries
-def print_data_from_seating(c):
-    for row in c.execute('SELECT * FROM seating'):
+#sql connection
+def get_connection(database_name):
+    conn = sqlite3.connect(database_name)
+    global SQL_CURSR
+    SQL_CURSR = conn.cursor()
+    return 
+
+def get_rows_cols():
+    global SQL_CURSR
+    for row in SQL_CURSR.execute("SELECT * FROM rows_cols"):
         print(row)
+    return
     
+def get_booked_seats():
+    global SQL_CURSR
+    for row in SQL_CURSR.execute("SELECT * FROM seating"):
+        print(row)
+    return
+    
+# Reservation-Related Queries
+def get_metrics():
+    global SQL_CURSR
+    for row in SQL_CURSR.execute('SELECT * FROM metrics'):
+        print(row)
+    return
         
 
 #Setup Environment 
@@ -88,15 +110,18 @@ def main():
         database_name= os.path.dirname(__file__) + "/../airline_seating.db" #sys.argv[1]
         filename=os.path.dirname(__file__) + "/../bookings.csv"  #sys.argv[2]
         
-        # SQL connections.
-        conn = sqlite3.connect(database_name)
-        c = conn.cursor()
+        get_connection(database_name)
+        
         #    print_data_from_seating(c)
-        print_data_from_seating(c)
+        get_booked_seats()
+        
+        get_rows_cols()
+        
+        get_metrics()
          
         #Create airbus layout in memory 
         airbus_seat_layout,total_free_seats=setup_airbus_layout()
-        #    print(airbus_seat_layout,total_free_seats)
+#        print(airbus_seat_layout,total_free_seats)
             
         #Import bookings.CSV file
         bookings_df=read_csv(filename)
@@ -105,7 +130,7 @@ def main():
             if total_free_seats >= row['booking_count']:
     #            print(index+1, row['booking_name'], row['booking_count'])
                 total_free_seats,airbus_seat_layout=allocate_seats(index+1,row,total_free_seats,airbus_seat_layout)
-    #            print(total_free_seats,airbus_seat_layout)
+#                print(total_free_seats,airbus_seat_layout)
             else:
                 print(index+1,row['booking_count'],"Seats not available to complete booking")
         
