@@ -13,33 +13,61 @@ import sys
 
 
 #global varibales
+SQL_CONN = None
 SQL_CURSR = None
+
+PASSENGERS_REFUSED = 0
+PASSENGERS_SEPARATED = 0
+
+FLIGHT_NROWS = 0
+FLIGHT_SEATS = None
+
 
 #sql connection
 def get_connection(database_name):
-    conn = sqlite3.connect(database_name)
-    global SQL_CURSR
-    SQL_CURSR = conn.cursor()
+    global SQL_CURSR, SQL_CONN
+    SQL_CONN = sqlite3.connect(database_name)
+    SQL_CURSR = SQL_CONN.cursor()
     return 
 
 def get_rows_cols():
-    global SQL_CURSR
-    for row in SQL_CURSR.execute("SELECT * FROM rows_cols"):
-        print(row)
+    global SQL_CURSR, FLIGHT_NROWS, FLIGHT_SEATS
+    SQL_CURSR.execute("SELECT * FROM rows_cols")
+    row = SQL_CURSR.fetchone()
+    FLIGHT_NROWS = row[0]
+    FLIGHT_SEATS = row[1]
+    print(FLIGHT_NROWS, ",", FLIGHT_SEATS)
+    return
+
+def get_metrics():
+    global SQL_CURSR, PASSENGERS_REFUSED, PASSENGERS_SEPARATED
+    SQL_CURSR.execute('SELECT * FROM metrics')
+    row = SQL_CURSR.fetchone()
+    PASSENGERS_REFUSED = row[0]
+    PASSENGERS_SEPARATED = row[1]
+    print(PASSENGERS_REFUSED, ",", PASSENGERS_SEPARATED)
     return
     
 def get_booked_seats():
-    global SQL_CURSR
-    for row in SQL_CURSR.execute("SELECT * FROM seating"):
-        print(row)
+    global SQL_CURSR , SQL_CONN
+    seat_cursr = SQL_CONN.cursor()
+    SQL_CURSR.execute("SELECT name, count(1) FROM seating where name != '' " +\
+                      " group by name")
+    for row in SQL_CURSR.fetchall():
+        seat_cursr.execute("SELECT row, seat from seating where name = '%s' " % row[0])
+        seat = seat_cursr.fetchone()
+        for each_seat in range(row[1]):
+            print(row[0], seat)
     return
     
-# Reservation-Related Queries
-def get_metrics():
-    global SQL_CURSR
-    for row in SQL_CURSR.execute('SELECT * FROM metrics'):
-        print(row)
+def update_metrics():
+    global SQL_CURSR, PASSENGERS_REFUSED, PASSENGERS_SEPARATED
+    SQL_CURSR.execute("update metrics " + \
+                      " set passengers_refused= ?, passengers_separated= ?" \
+                      , (PASSENGERS_REFUSED, PASSENGERS_SEPARATED) )
+    SQL_CONN.commit()
     return
+    
         
 
 #Setup Environment 
@@ -107,6 +135,9 @@ def main():
     
     #Input Processing from input file
     if(len(sys.argv) == 3):
+        
+        global PASSENGERS_REFUSED, PASSENGERS_SEPARATED
+        
         database_name= os.path.dirname(__file__) + "/../airline_seating.db" #sys.argv[1]
         filename=os.path.dirname(__file__) + "/../bookings.csv"  #sys.argv[2]
         
@@ -118,6 +149,7 @@ def main():
         get_rows_cols()
         
         get_metrics()
+        
          
         #Create airbus layout in memory 
         airbus_seat_layout,total_free_seats=setup_airbus_layout()
@@ -132,9 +164,11 @@ def main():
                 total_free_seats,airbus_seat_layout=allocate_seats(index+1,row,total_free_seats,airbus_seat_layout)
 #                print(total_free_seats,airbus_seat_layout)
             else:
-                print(index+1,row['booking_count'],"Seats not available to complete booking")
+#                print(index+1,row['booking_count'],"Seats not available to complete booking")
+                PASSENGERS_REFUSED += 1
         
-        print(airbus_seat_layout)
+#        print(airbus_seat_layout)
+        update_metrics()
     
     else:
         print("Error - Invalid Arguments Passed")
