@@ -8,7 +8,6 @@ Created on Sun Feb  5 16:26:41 2017
 import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import sqlite3
-import os.path
 import sys
 
 #Global Variables
@@ -196,8 +195,8 @@ def main():
             
             global PASSENGERS_REFUSED, PASSENGERS_SEPARATED
             
-            database_name= os.path.dirname(__file__) + "/../airline_seating.db" #sys.argv[1]
-            filename=os.path.dirname(__file__) + "/../bookings.csv"  #sys.argv[2]
+            database_name= sys.argv[1]
+            filename= sys.argv[2]
             
             get_connection(database_name)
             
