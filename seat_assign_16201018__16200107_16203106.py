@@ -40,34 +40,46 @@ def get_connection(database_name):
         SQL_CURSR = SQL_CONN.cursor()
     
     except sqlite3.Error as e:
-        print("Error Occured", e)
+        print("Error in Database Connection",e.args)
         
     return 
+
 
 #Function to obtain the Seat configuration
 def get_rows_cols():
     global SQL_CURSR, FLIGHT_NROWS, FLIGHT_SEATS
-    #Fetching the seat configuration from the database 
+    
     try:
+        #Fetching the seat configuration from the database 
         SQL_CURSR.execute("SELECT * FROM rows_cols")
         row = SQL_CURSR.fetchone()
         FLIGHT_NROWS = row[0]
         FLIGHT_SEATS = str(row[1])
         #print(FLIGHT_NROWS, ",", FLIGHT_SEATS, ",", len(FLIGHT_SEATS))
+    
     except sqlite3.Error as e:
-            print("Thrown Error: ", e.args)
+            print("Error in Seat Map Configuration",e.args)
+    
     return
+
 
 #Function to obtain the Separated and Refused passengers
 def get_metrics():
     global SQL_CURSR, PASSENGERS_REFUSED, PASSENGERS_SEPARATED
-    #Fetching the value of number of passengers refused and number of passengers separated from the database
-    SQL_CURSR.execute('SELECT * FROM metrics')
-    row = SQL_CURSR.fetchone()
-    PASSENGERS_REFUSED = row[0]
-    PASSENGERS_SEPARATED = row[1]
-    #print(PASSENGERS_REFUSED, ",", PASSENGERS_SEPARATED)
+    
+    try:
+        #Fetching the value of number of passengers refused and number of passengers separated from the database
+        SQL_CURSR.execute('SELECT * FROM metrics')
+        row = SQL_CURSR.fetchone()
+        PASSENGERS_REFUSED = row[0]
+        PASSENGERS_SEPARATED = row[1]
+        #print(PASSENGERS_REFUSED, ",", PASSENGERS_SEPARATED)
+    
+    except sqlite3.Error as e:
+            print("Error in Passenger Metrics",e.args)
+    
     return
+
 
 #Function to obtain the Previous bookings in the flight
 def get_booked_seats():
@@ -86,30 +98,44 @@ def get_booked_seats():
     #print(bookedSeatsList)
     return bookedSeatsList
 
+
 #Function to update the database with Bookings
 def update_seat(booking_name, row_num, column_num):
     global SQL_CURSR, FLIGHT_SEATS
-    #print(booking_name, row_num+1, FLIGHT_SEATS[column_num-1])
-    #Update the seating table with name of the passenger and the seats allocated 
-    SQL_CURSR.execute("update seating " + \
-                      " set name = ? " + \
-                      " where row = ? and seat = ? " \
-                      , (booking_name, (row_num+1), FLIGHT_SEATS[column_num-1]))
-    SQL_CONN.commit()
+    
+    try:
+        #print(booking_name, row_num+1, FLIGHT_SEATS[column_num-1])
+        #Update the seating table with name of the passenger and the seats allocated 
+        SQL_CURSR.execute("update seating " + \
+                          " set name = ? " + \
+                          " where row = ? and seat = ? " \
+                          , (booking_name, (row_num+1), FLIGHT_SEATS[column_num-1]))
+        SQL_CONN.commit()
+    
+    except sqlite3.Error as e:
+            print("Error in Updating Passenger Details",e.args)
+
     return
+
 
 #Function to update the database with separated passengers and refused bookings
 def update_metrics():
     global SQL_CURSR, PASSENGERS_REFUSED, PASSENGERS_SEPARATED
-    #Update metrics table with number of passengers separated and count of bookings refused
-    SQL_CURSR.execute("update metrics " + \
-                      " set passengers_refused= ?, passengers_separated= ?" \
-                      , (PASSENGERS_REFUSED, PASSENGERS_SEPARATED) )
-    SQL_CONN.commit()
+    
+    try:
+        #Update metrics table with number of passengers separated and count of bookings refused
+        SQL_CURSR.execute("update metrics " + \
+                          " set passengers_refused= ?, passengers_separated= ?" \
+                          , (PASSENGERS_REFUSED, PASSENGERS_SEPARATED) )
+        SQL_CONN.commit()
+    
+    except sqlite3.Error as e:
+            print("Error in Updating Passenger Metrics",e.args)
+             
     return
         
 
-#Setup Environment 
+#Setup Environment for Airbus
 def setup_airbus_layout(total_rows=15, total_seats=4, bookedSeatsList=None ):
     airbus_seat_layout = get_airbus_seat_layout(total_rows, total_seats)
     total_free_seats = np.sum(airbus_seat_layout[:,0])
@@ -120,31 +146,28 @@ def setup_airbus_layout(total_rows=15, total_seats=4, bookedSeatsList=None ):
         total_free_seats -= 1
 #    print(airbus_seat_layout)
     return airbus_seat_layout, total_free_seats
+ 
     
-#Airbus seat Layout
+#Function to fetch Airbus seat Layout
 def get_airbus_seat_layout(total_rows=15, total_seats=4):
     airbus_seat_layout = np.zeros((total_rows,total_seats+1),dtype=np.int)
     airbus_seat_layout[:,0] = total_seats
     return airbus_seat_layout    
 
-
-    
-    
-# Passenger-Related Queries
-
       
-# Functions for validation
+#Function to fetch the booking details from csv file
 def read_csv(filename):
     bookings_temp_df=pd.read_csv(filename, names=['booking_name','booking_count'])
     return bookings_temp_df
     #bookings_df= pd.read_csv(filename)
 
 
+#Function to allocate seats for the bookings
 def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
     booking_count = row['booking_count']
     global PASSENGERS_SEPARATED
 
-#    Allocations side by side
+    #Allocations side by side
     for each_row in range(airbus_seat_layout.shape[0]):
         if(booking_count!=0 and airbus_seat_layout[each_row][0]>=booking_count):
             for each_column in range(airbus_seat_layout.shape[1]):
@@ -157,7 +180,7 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
                 if booking_count ==0:
 #                    print(booking_count,total_free_seats,airbus_seat_layout[each_row][0])
                     break
-#    No Allocation done and book separately
+    #No Allocation done and book separately
     if(booking_count == row['booking_count']):
         print(index,"Sidebyside not possible")
         prev_row = 0
@@ -165,7 +188,7 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
             if(booking_count!=0 and airbus_seat_layout[each_row][0]!=0):
                 for each_column in range(airbus_seat_layout.shape[1]):
                     if(airbus_seat_layout[each_row][each_column]==0):
-                        # Determine where first row allocated
+                        #Identify where first row allocated
                         if(booking_count==row['booking_count']):
                             prev_row = each_row
                         
@@ -175,7 +198,7 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
                         airbus_seat_layout[each_row][0]-=1
                         update_seat(row['booking_name'],each_row,each_column)
                         
-                        # if the seat allocated in a new row
+                        #If the seat is allocated in a new row
                         if(prev_row != each_row):
                             PASSENGERS_SEPARATED += 1
                         
@@ -186,7 +209,7 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
     return total_free_seats,airbus_seat_layout
 
     
-# main function to make call to all functions
+#Main functoin to invoke other functions to start booking process
 def main():
     
     try:
@@ -200,7 +223,7 @@ def main():
             
             get_connection(database_name)
             
-            # Load data from database 
+            #Load data from database 
             get_rows_cols()
             
             get_metrics()
