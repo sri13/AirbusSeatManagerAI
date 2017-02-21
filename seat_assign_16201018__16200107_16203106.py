@@ -11,69 +11,87 @@ import sqlite3
 import os.path
 import sys
 
+#Global Variables
 
-#global varibales
+#Variable for Database Connection is Initially declared as None(No Connection Initally)
 SQL_CONN = None
+#Variable for Executing the Query and storing it in Memory
 SQL_CURSR = None
 
+#Variable to store the number of passenger refused booking
 PASSENGERS_REFUSED = 0
+#Variable to store the number of passengers separated in a group booking
 PASSENGERS_SEPARATED = 0
 
+#Variable to get the seat configuration from the database
 FLIGHT_NROWS = 0
 FLIGHT_SEATS = ''
 
 
-#sql connection
+#Function to establish connection to the database
 def get_connection(database_name):
-    global SQL_CURSR, SQL_CONN
-    SQL_CONN = sqlite3.connect(database_name)
+    global SQL_CURSR, SQL_CONN          
+    #Passing Database name as an arguement to establish connection
+    SQL_CONN = sqlite3.connect(database_name)   
+    #Variable storing the Database values using cursor() function
     SQL_CURSR = SQL_CONN.cursor()
     return 
 
+#Function to obtain the Seat configuration
 def get_rows_cols():
     global SQL_CURSR, FLIGHT_NROWS, FLIGHT_SEATS
+    #Fetching the seat configuration from the database 
     SQL_CURSR.execute("SELECT * FROM rows_cols")
     row = SQL_CURSR.fetchone()
     FLIGHT_NROWS = row[0]
     FLIGHT_SEATS = str(row[1])
-#    print(FLIGHT_NROWS, ",", FLIGHT_SEATS, ",", len(FLIGHT_SEATS))
+    #print(FLIGHT_NROWS, ",", FLIGHT_SEATS, ",", len(FLIGHT_SEATS))
     return
 
+#Function to obtain the Separated and Refused passengers
 def get_metrics():
     global SQL_CURSR, PASSENGERS_REFUSED, PASSENGERS_SEPARATED
+    #Fetching the value of number of passengers refused and number of passengers separated from the database
     SQL_CURSR.execute('SELECT * FROM metrics')
     row = SQL_CURSR.fetchone()
     PASSENGERS_REFUSED = row[0]
     PASSENGERS_SEPARATED = row[1]
-#    print(PASSENGERS_REFUSED, ",", PASSENGERS_SEPARATED)
+    #print(PASSENGERS_REFUSED, ",", PASSENGERS_SEPARATED)
     return
-    
+
+#Function to obtain the Previous bookings in the flight
 def get_booked_seats():
     global SQL_CURSR , SQL_CONN, FLIGHT_SEATS
     bookedSeatsList = []
     seat_cursr = SQL_CONN.cursor()
+    #Fetching the previously booked seats from the database
     SQL_CURSR.execute("SELECT name, count(1) FROM seating where name != '' " +\
                       " group by name")
     for row in SQL_CURSR.fetchall():
+        #Fetching the row and set number of previous boking from database
         seat_cursr.execute("SELECT row, seat from seating where name = '%s' " % row[0])
         seat = seat_cursr.fetchone()        
         for each_seat in range(row[1]):
             bookedSeatsList.append((seat[0]-1, FLIGHT_SEATS.index(seat[1])+1))
-#    print(bookedSeatsList)
+    #print(bookedSeatsList)
     return bookedSeatsList
-    
+
+#Function to update the database with Bookings
 def update_seat(booking_name, row_num, column_num):
     global SQL_CURSR, FLIGHT_SEATS
-#    print(booking_name, row_num+1, FLIGHT_SEATS[column_num-1])
+    #print(booking_name, row_num+1, FLIGHT_SEATS[column_num-1])
+    #Update the seating table with name of the passenger and the seats allocated 
     SQL_CURSR.execute("update seating " + \
                       " set name = ? " + \
                       " where row = ? and seat = ? " \
                       , (booking_name, (row_num+1), FLIGHT_SEATS[column_num-1]))
     SQL_CONN.commit()
     return
-    
+
+#Function to update the database with separated passengers and refused bookings
 def update_metrics():
     global SQL_CURSR, PASSENGERS_REFUSED, PASSENGERS_SEPARATED
+    #Update metrics table with number of passengers separated and count of bookings refused
     SQL_CURSR.execute("update metrics " + \
                       " set passengers_refused= ?, passengers_separated= ?" \
                       , (PASSENGERS_REFUSED, PASSENGERS_SEPARATED) )
