@@ -30,22 +30,33 @@ FLIGHT_SEATS = ''
 
 #Function to establish connection to the database
 def get_connection(database_name):
-    global SQL_CURSR, SQL_CONN          
-    #Passing Database name as an arguement to establish connection
-    SQL_CONN = sqlite3.connect(database_name)   
-    #Variable storing the Database values using cursor() function
-    SQL_CURSR = SQL_CONN.cursor()
+    global SQL_CURSR, SQL_CONN    
+    
+    print(database_name)
+    try:       
+        #Passing Database name as an arguement to establish connection
+        SQL_CONN = sqlite3.connect(database_name)   
+        
+        #Variable storing the Database values using cursor() function
+        SQL_CURSR = SQL_CONN.cursor()
+    
+    except sqlite3.Error as e:
+        print("Error Occured", e)
+        
     return 
 
 #Function to obtain the Seat configuration
 def get_rows_cols():
     global SQL_CURSR, FLIGHT_NROWS, FLIGHT_SEATS
     #Fetching the seat configuration from the database 
-    SQL_CURSR.execute("SELECT * FROM rows_cols")
-    row = SQL_CURSR.fetchone()
-    FLIGHT_NROWS = row[0]
-    FLIGHT_SEATS = str(row[1])
-    #print(FLIGHT_NROWS, ",", FLIGHT_SEATS, ",", len(FLIGHT_SEATS))
+    try:
+        SQL_CURSR.execute("SELECT * FROM rows_cols")
+        row = SQL_CURSR.fetchone()
+        FLIGHT_NROWS = row[0]
+        FLIGHT_SEATS = str(row[1])
+        #print(FLIGHT_NROWS, ",", FLIGHT_SEATS, ",", len(FLIGHT_SEATS))
+    except sqlite3.Error as e:
+            print("Thrown Error: ", e.args)
     return
 
 #Function to obtain the Separated and Refused passengers
@@ -179,48 +190,52 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
 # main function to make call to all functions
 def main():
     
-    #Input Processing from input file
-    if(len(sys.argv) == 3):
-        
-        global PASSENGERS_REFUSED, PASSENGERS_SEPARATED
-        
-        database_name= os.path.dirname(__file__) + "/../airline_seating.db" #sys.argv[1]
-        filename=os.path.dirname(__file__) + "/../bookings.csv"  #sys.argv[2]
-        
-        get_connection(database_name)
-        
-        # Load data from database 
-        get_rows_cols()
-        
-        get_metrics()
-        
-        bookedSeatsList = get_booked_seats()
-        
-        global FLIGHT_NROWS, FLIGHT_SEATS         
-        #Create airbus layout in memory 
-        airbus_seat_layout,total_free_seats=setup_airbus_layout(FLIGHT_NROWS, \
-                                        len(FLIGHT_SEATS), bookedSeatsList )
-#        print(airbus_seat_layout,total_free_seats)
+    try:
+        #Input Processing from input file
+        if(len(sys.argv) == 3):
             
-        #Import bookings.CSV file
-        bookings_df=read_csv(filename)
+            global PASSENGERS_REFUSED, PASSENGERS_SEPARATED
             
-        for index,row in bookings_df.iterrows():
-            if total_free_seats >= row['booking_count']:
-    #            print(index+1, row['booking_name'], row['booking_count'])
-                total_free_seats,airbus_seat_layout=allocate_seats(index+1,row,total_free_seats,airbus_seat_layout)
-#                print(total_free_seats,airbus_seat_layout)
-            else:
-#                print(index+1,row['booking_count'],"Seats not available to complete booking")
-                PASSENGERS_REFUSED += 1
+            database_name= os.path.dirname(__file__) + "/../airline_seating.db" #sys.argv[1]
+            filename=os.path.dirname(__file__) + "/../bookings.csv"  #sys.argv[2]
+            
+            get_connection(database_name)
+            
+            # Load data from database 
+            get_rows_cols()
+            
+            get_metrics()
+            
+            bookedSeatsList = get_booked_seats()
+            
+            global FLIGHT_NROWS, FLIGHT_SEATS         
+            #Create airbus layout in memory 
+            airbus_seat_layout,total_free_seats=setup_airbus_layout(FLIGHT_NROWS, \
+                                            len(FLIGHT_SEATS), bookedSeatsList )
+        #        print(airbus_seat_layout,total_free_seats)
+                
+            #Import bookings.CSV file
+            bookings_df=read_csv(filename)
+                
+            for index,row in bookings_df.iterrows():
+                if total_free_seats >= row['booking_count']:
+        #            print(index+1, row['booking_name'], row['booking_count'])
+                    total_free_seats,airbus_seat_layout=allocate_seats(index+1,row,total_free_seats,airbus_seat_layout)
+        #                print(total_free_seats,airbus_seat_layout)
+                else:
+        #                print(index+1,row['booking_count'],"Seats not available to complete booking")
+                    PASSENGERS_REFUSED += 1
+            
+            print(airbus_seat_layout)
+            update_metrics()
         
-        print(airbus_seat_layout)
-        update_metrics()
-    
-    else:
-        print("Error - Invalid Arguments Passed")
-        print("Correct Usage: python seat_assign_16201018__16200107_16203106.py *.db *.csv")
-    
+        else:
+            print("Error - Invalid Arguments Passed")
+            print("Correct Usage: python seat_assign_16201018__16200107_16203106.py *.db *.csv")
+
+    except Exception as err:
+        print("Error occured.", err.args)
+        
     return
     
     
