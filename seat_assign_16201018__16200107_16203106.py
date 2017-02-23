@@ -209,7 +209,7 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
                     return total_free_seats,airbus_seat_layout
 
     #No Allocation done and book separately
-    if(booking_count == row['booking_count']):
+    if(booking_count !=0):
         
         first_row = 0
         prev_row = 0
