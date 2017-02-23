@@ -159,7 +159,7 @@ def setup_airbus_layout(total_rows, total_seats, bookedSeatsList=None ):
         return airbus_seat_layout, total_free_seats
     else:
         print("Error in airbus layout : total rows - " + total_rows + \
-              " total seats - " + total_rows)
+              " total seats - " + total_seats)
         sys.exit(1)
  
     
@@ -192,11 +192,14 @@ def read_csv(filename):
 #Function to allocate seats for the bookings
 def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
     booking_count = row['booking_count']
-    global PASSENGERS_SEPARATED
+    
+    global PASSENGERS_SEPARATED, FLIGHT_SEATS
 
     #Allocations side by side
     for each_row in range(airbus_seat_layout.shape[0]):
-        if(booking_count!=0 and airbus_seat_layout[each_row][0]>=booking_count):
+        if( booking_count!=0 and ( (airbus_seat_layout[each_row][0]>=booking_count) \
+            or ( (booking_count > len(FLIGHT_SEATS)) and \
+                   (airbus_seat_layout[each_row][0] == len(FLIGHT_SEATS))))):
             for each_column in range(airbus_seat_layout.shape[1]):
                 if(airbus_seat_layout[each_row][each_column]==0):
                     airbus_seat_layout[each_row][each_column]=index
@@ -205,35 +208,41 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
                     airbus_seat_layout[each_row][0]-=1
                     update_seat(row['booking_name'],each_row,each_column)
                 if booking_count ==0:
-#                    print(booking_count,total_free_seats,airbus_seat_layout[each_row][0])
-                    break
+                    return total_free_seats,airbus_seat_layout
+
     #No Allocation done and book separately
     if(booking_count == row['booking_count']):
         print(index,"Sidebyside not possible")
+        
+        first_row = 0
         prev_row = 0
         for each_row in range(airbus_seat_layout.shape[0]):
             if(booking_count!=0 and airbus_seat_layout[each_row][0]!=0):
                 for each_column in range(airbus_seat_layout.shape[1]):
                     if(airbus_seat_layout[each_row][each_column]==0):
-                        #Identify where first row allocated
-                        if(booking_count==row['booking_count']):
-                            prev_row = each_row
                         
+                        #Identify row where first seat allocated
+                        if(booking_count==row['booking_count']):
+                            first_row = each_row
+                            prev_row = each_row
+                            
                         airbus_seat_layout[each_row][each_column]=index
                         booking_count -=1
                         total_free_seats-=1
                         airbus_seat_layout[each_row][0]-=1
                         update_seat(row['booking_name'],each_row,each_column)
                         
-                        #If the seat is allocated in a new row
-                        if(prev_row != each_row):
+                        #If the seat is allocated in a new row and 
+                        # not any bookings made on same row
+                        if((first_row != each_row) and (prev_row != each_row)):
                             PASSENGERS_SEPARATED += 1
+                            prev_row = each_row
                         
                     if booking_count ==0:
 #                        print(booking_count,total_free_seats,airbus_seat_layout[each_row][0])
-                        break
+                        return total_free_seats,airbus_seat_layout
     
-    return total_free_seats,airbus_seat_layout
+
 
     
 
@@ -289,12 +298,16 @@ def main():
                                     row,total_free_seats,airbus_seat_layout)
                 else:
         
-                    PASSENGERS_REFUSED += 1
+                    PASSENGERS_REFUSED += row['booking_count']
             
             print(airbus_seat_layout)
             
             # update metrics at the end
             update_metrics()
+            
+            #print metrics
+            print("Passegners refused : ",PASSENGERS_REFUSED )
+            print("Passengers separated: ", PASSENGERS_SEPARATED)
         
         else:
             print("Error - Invalid Arguments Passed")
