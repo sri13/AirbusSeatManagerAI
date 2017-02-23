@@ -89,7 +89,7 @@ def get_metrics():
 def get_booked_seats():
     global SQL_CURSR , SQL_CONN, FLIGHT_SEATS
     bookedSeatsList = []
-    
+
     try:
         seat_cursr = SQL_CONN.cursor()
         #Fetching the previously booked seats from the database
@@ -98,10 +98,9 @@ def get_booked_seats():
         for row in SQL_CURSR.fetchall():
             #Fetching the row and set number of previous boking from database
             seat_cursr.execute("SELECT row, seat from seating where name = '%s' " % row[0])
-            seat = seat_cursr.fetchone()        
-            for each_seat in range(row[1]):
-                bookedSeatsList.append((seat[0]-1, FLIGHT_SEATS.index(seat[1])+1))
-        #print(bookedSeatsList)
+            for each_seat in seat_cursr.fetchall():
+                bookedSeatsList.append((each_seat[0]-1, FLIGHT_SEATS.index(each_seat[1])+1))
+        
     except sqlite3.Error as e:
         print("Error during booked seats retrival - " + e.args[0])
         sys.exit(1)
@@ -113,7 +112,6 @@ def update_seat(booking_name, row_num, column_num):
     global SQL_CURSR, FLIGHT_SEATS
     
     try:
-        #print(booking_name, row_num+1, FLIGHT_SEATS[column_num-1])
         #Update the seating table with name of the passenger and the seats allocated 
         SQL_CURSR.execute("update seating " + \
                           " set name = ? " + \
@@ -212,7 +210,6 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
 
     #No Allocation done and book separately
     if(booking_count == row['booking_count']):
-        print(index,"Sidebyside not possible")
         
         first_row = 0
         prev_row = 0
@@ -239,11 +236,7 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
                             prev_row = each_row
                         
                     if booking_count ==0:
-#                        print(booking_count,total_free_seats,airbus_seat_layout[each_row][0])
                         return total_free_seats,airbus_seat_layout
-    
-
-
     
 
 def main():
@@ -277,35 +270,33 @@ def main():
             
             bookedSeatsList = get_booked_seats()
             
-            
             #Create airbus layout in memory 
             global FLIGHT_NROWS, FLIGHT_SEATS         
             airbus_seat_layout,total_free_seats=setup_airbus_layout(FLIGHT_NROWS, \
                                             len(FLIGHT_SEATS), bookedSeatsList )
-
-                
+            
             #Import bookings.CSV file
             bookings_df=read_csv(filename)
-                
+            
             for index,row in bookings_df.iterrows():
                 # if any of the rows contain bad data, then skip
-#                if(math.isnan(str(row['boooking_count'])) or \
-#                                       math.isnan(str(row['boooking_name']))):
+#                print(float(row['booking_count']), math.isnan(float(row['booking_count'])))
+#                if(math.isnan(float(row['booking_count'])) or \
+#                                       math.isnan(float(row['booking_name']))):
 #                    continue
-                
+#                
                 if total_free_seats >= row['booking_count']:
                     total_free_seats,airbus_seat_layout=allocate_seats(index+1, \
                                     row,total_free_seats,airbus_seat_layout)
                 else:
         
                     PASSENGERS_REFUSED += row['booking_count']
+
+                # update metrics at the end
+                update_metrics()
             
+            #print metrics    
             print(airbus_seat_layout)
-            
-            # update metrics at the end
-            update_metrics()
-            
-            #print metrics
             print("Passegners refused : ",PASSENGERS_REFUSED )
             print("Passengers separated: ", PASSENGERS_SEPARATED)
         
@@ -317,7 +308,7 @@ def main():
         print("IO Error occured - "+ err.args[0])
     
     except Exception as err:
-        print("Unknow Error occured - " + err.args[0])
+        print("Unknow Error occured in Main - ", err.args)
         
     return
     
