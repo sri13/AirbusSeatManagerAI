@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Created on Sun Feb  5 16:26:41 2017
+Airline Seating Assignment 
 
-@author: legend
+@authors: 
+    Rohit Muthmare - 16201018
+    Dinesh Kumar Sakthivel Pandi - 16200107 
+    Srikanth Tiyyagura - 16203106
 """
 
 import numpy as np # linear algebra
@@ -10,7 +13,6 @@ import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import sqlite3
 import sys
 from pathlib import Path
-import math
 
 #Global Variables
 
@@ -49,8 +51,11 @@ def get_connection(database_name):
     return 
 
 
-#Function to obtain the Seat configuration
+
 def get_rows_cols():
+    '''
+    Function to obtain the Seat configuration
+    '''
     global SQL_CURSR, FLIGHT_NROWS, FLIGHT_SEATS
     
     try:
@@ -67,8 +72,11 @@ def get_rows_cols():
     return
 
 
-#Function to obtain the Separated and Refused passengers
+
 def get_metrics():
+    '''
+    Function to obtain the Separated and Refused passengers
+    '''
     global SQL_CURSR, PASSENGERS_REFUSED, PASSENGERS_SEPARATED
     
     try:
@@ -85,8 +93,11 @@ def get_metrics():
     return
 
 
-#Function to obtain the Previous bookings in the flight
+
 def get_booked_seats():
+    '''
+    Function to obtain the Previous bookings in the flight
+    '''
     global SQL_CURSR , SQL_CONN, FLIGHT_SEATS
     bookedSeatsList = []
 
@@ -107,8 +118,11 @@ def get_booked_seats():
     return bookedSeatsList
 
 
-#Function to update the database with Bookings
+
 def update_seat(booking_name, row_num, column_num):
+    '''
+    Function to update the database with Bookings
+    '''
     global SQL_CURSR, FLIGHT_SEATS
     
     try:
@@ -125,8 +139,12 @@ def update_seat(booking_name, row_num, column_num):
     return
 
 
-#Function to update the database with separated passengers and refused bookings
+
 def update_metrics():
+    '''
+    Function to update the database with separated passengers
+    and refused bookings
+    '''
     global SQL_CURSR, PASSENGERS_REFUSED, PASSENGERS_SEPARATED
     
     try:
@@ -172,13 +190,13 @@ def get_airbus_seat_layout(total_rows, total_seats):
     return airbus_seat_layout    
 
       
-#Function to fetch the booking details from csv file
 def read_csv(filename):
+    '''
+    Function to fetch the booking details from csv file
+    '''
     try:
         # names list help to read only two columns in the file
-        # error bad lines parameter helps to ignore bad rows
-        bookings_temp_df=pd.read_csv(filename, names=['booking_name','booking_count'],  \
-                                     error_bad_lines = False)
+        bookings_temp_df=pd.read_csv(filename, names=['booking_name','booking_count']) 
         return bookings_temp_df
         
     except Exception as e:
@@ -187,57 +205,62 @@ def read_csv(filename):
     
     
 
-#Function to allocate seats for the bookings
 def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
+    '''
+    Function to allocate seats for the bookings
+    '''
     booking_count = row['booking_count']
     
     global PASSENGERS_SEPARATED, FLIGHT_SEATS
 
-    #Allocations side by side
-    for each_row in range(airbus_seat_layout.shape[0]):
-        if( booking_count!=0 and ( (airbus_seat_layout[each_row][0]>=booking_count) \
-            or ( (booking_count > len(FLIGHT_SEATS)) and \
-                   (airbus_seat_layout[each_row][0] == len(FLIGHT_SEATS))))):
-            for each_column in range(airbus_seat_layout.shape[1]):
-                if(airbus_seat_layout[each_row][each_column]==0):
-                    airbus_seat_layout[each_row][each_column]=index
-                    booking_count -=1
-                    total_free_seats-=1
-                    airbus_seat_layout[each_row][0]-=1
-                    update_seat(row['booking_name'],each_row,each_column)
-                if booking_count ==0:
-                    return total_free_seats,airbus_seat_layout
-
-    #No Allocation done and book separately
-    if(booking_count !=0):
-        
-        first_row = 0
-        prev_row = 0
+    try:
+        #Allocations side by side
         for each_row in range(airbus_seat_layout.shape[0]):
-            if(booking_count!=0 and airbus_seat_layout[each_row][0]!=0):
+            if( booking_count!=0 and ( (airbus_seat_layout[each_row][0]>=booking_count) \
+                or ( (booking_count > len(FLIGHT_SEATS)) and \
+                       (airbus_seat_layout[each_row][0] == len(FLIGHT_SEATS))))):
                 for each_column in range(airbus_seat_layout.shape[1]):
                     if(airbus_seat_layout[each_row][each_column]==0):
-                        
-                        #Identify row where first seat allocated
-                        if(booking_count==row['booking_count']):
-                            first_row = each_row
-                            prev_row = each_row
-                            
                         airbus_seat_layout[each_row][each_column]=index
                         booking_count -=1
                         total_free_seats-=1
                         airbus_seat_layout[each_row][0]-=1
                         update_seat(row['booking_name'],each_row,each_column)
-                        
-                        #If the seat is allocated in a new row and 
-                        # not any bookings made on same row
-                        if((first_row != each_row) and (prev_row != each_row)):
-                            PASSENGERS_SEPARATED += 1
-                            prev_row = each_row
-                        
                     if booking_count ==0:
                         return total_free_seats,airbus_seat_layout
     
+        #No Allocation done and book separately
+        if(booking_count !=0):
+            first_row = 0
+            prev_row = 0
+            for each_row in range(airbus_seat_layout.shape[0]):
+                if(booking_count!=0 and airbus_seat_layout[each_row][0]!=0):
+                    for each_column in range(airbus_seat_layout.shape[1]):
+                        if(airbus_seat_layout[each_row][each_column]==0):
+                            
+                            #Identify row where first seat allocated
+                            if(booking_count==row['booking_count']):
+                                first_row = each_row
+                                prev_row = each_row
+                                
+                            airbus_seat_layout[each_row][each_column]=index
+                            booking_count -=1
+                            total_free_seats-=1
+                            airbus_seat_layout[each_row][0]-=1
+                            update_seat(row['booking_name'],each_row,each_column)
+                            
+                            #If the seat is allocated in a new row and 
+                            # not any bookings made on same row
+                            if((first_row != each_row) and (prev_row != each_row)):
+                                PASSENGERS_SEPARATED += 1
+                                prev_row = each_row
+                            
+                        if booking_count ==0:
+                            return total_free_seats,airbus_seat_layout
+    except Exception as e:
+         print("Error occured during allocation - " + e.args[0])
+         sys.exit(1)
+         return
 
 def main():
     """
@@ -280,25 +303,25 @@ def main():
             
             for index,row in bookings_df.iterrows():
                 # if any of the rows contain bad data, then skip
-#                print(float(row['booking_count']), math.isnan(float(row['booking_count'])))
-#                if(math.isnan(float(row['booking_count'])) or \
-#                                       math.isnan(float(row['booking_name']))):
-#                    continue
-#                
+                if(pd.isnull(row['booking_count']) or pd.isnull(row['booking_name']) \
+                             or row['booking_count'] <=0):
+                    print("Skipped Bad Data - ",row['booking_name'], row['booking_count'])
+                    continue
+                
                 if total_free_seats >= row['booking_count']:
                     total_free_seats,airbus_seat_layout=allocate_seats(index+1, \
                                     row,total_free_seats,airbus_seat_layout)
                 else:
         
-                    PASSENGERS_REFUSED += row['booking_count']
+                    PASSENGERS_REFUSED += int(row['booking_count'])
 
                 # update metrics at the end
                 update_metrics()
             
             #print metrics    
-            print(airbus_seat_layout)
             print("Passegners refused : ",PASSENGERS_REFUSED )
             print("Passengers separated: ", PASSENGERS_SEPARATED)
+            print("Thank you for Booking with UCD Airlines.!")
         
         else:
             print("Error - Invalid Arguments Passed")
