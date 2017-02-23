@@ -9,6 +9,8 @@ import numpy as np # linear algebra
 import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
 import sqlite3
 import sys
+from pathlib import Path
+import math
 
 #Global Variables
 
@@ -27,21 +29,23 @@ FLIGHT_NROWS = 0
 FLIGHT_SEATS = ''
 
 
-#Function to establish connection to the database
+
 def get_connection(database_name):
-    global SQL_CURSR, SQL_CONN    
+    '''
+    Function to establish connection to the database    
+    '''    
+    global SQL_CURSR, SQL_CONN        
     
-    print(database_name)
     try:       
         #Passing Database name as an arguement to establish connection
         SQL_CONN = sqlite3.connect(database_name)   
         
-        #Variable storing the Database values using cursor() function
+        #Variable storing the Database cursor for future operations
         SQL_CURSR = SQL_CONN.cursor()
     
     except sqlite3.Error as e:
-        print("Error in Database Connection",e.args)
-        
+        print("Error during Database Connection - " + e.args)
+        sys.exit(1) 
     return 
 
 
@@ -53,13 +57,13 @@ def get_rows_cols():
         #Fetching the seat configuration from the database 
         SQL_CURSR.execute("SELECT * FROM rows_cols")
         row = SQL_CURSR.fetchone()
+        
         FLIGHT_NROWS = row[0]
         FLIGHT_SEATS = str(row[1])
-        #print(FLIGHT_NROWS, ",", FLIGHT_SEATS, ",", len(FLIGHT_SEATS))
-    
+        
     except sqlite3.Error as e:
-            print("Error in Seat Map Configuration",e.args)
-    
+            print("Error during Flight seat map config. retrival - " + e.args[0])
+            sys.exit(1)
     return
 
 
@@ -71,13 +75,13 @@ def get_metrics():
         #Fetching the value of number of passengers refused and number of passengers separated from the database
         SQL_CURSR.execute('SELECT * FROM metrics')
         row = SQL_CURSR.fetchone()
+    
         PASSENGERS_REFUSED = row[0]
         PASSENGERS_SEPARATED = row[1]
-        #print(PASSENGERS_REFUSED, ",", PASSENGERS_SEPARATED)
     
     except sqlite3.Error as e:
-            print("Error in Passenger Metrics",e.args)
-    
+            print("Error during Flight Metrics retrival - " + e.args[0])
+            sys.exit(1)
     return
 
 
@@ -85,17 +89,22 @@ def get_metrics():
 def get_booked_seats():
     global SQL_CURSR , SQL_CONN, FLIGHT_SEATS
     bookedSeatsList = []
-    seat_cursr = SQL_CONN.cursor()
-    #Fetching the previously booked seats from the database
-    SQL_CURSR.execute("SELECT name, count(1) FROM seating where name != '' " +\
-                      " group by name")
-    for row in SQL_CURSR.fetchall():
-        #Fetching the row and set number of previous boking from database
-        seat_cursr.execute("SELECT row, seat from seating where name = '%s' " % row[0])
-        seat = seat_cursr.fetchone()        
-        for each_seat in range(row[1]):
-            bookedSeatsList.append((seat[0]-1, FLIGHT_SEATS.index(seat[1])+1))
-    #print(bookedSeatsList)
+    
+    try:
+        seat_cursr = SQL_CONN.cursor()
+        #Fetching the previously booked seats from the database
+        SQL_CURSR.execute("SELECT name, count(1) FROM seating where name != '' " +\
+                          " group by name")
+        for row in SQL_CURSR.fetchall():
+            #Fetching the row and set number of previous boking from database
+            seat_cursr.execute("SELECT row, seat from seating where name = '%s' " % row[0])
+            seat = seat_cursr.fetchone()        
+            for each_seat in range(row[1]):
+                bookedSeatsList.append((seat[0]-1, FLIGHT_SEATS.index(seat[1])+1))
+        #print(bookedSeatsList)
+    except sqlite3.Error as e:
+        print("Error during booked seats retrival - " + e.args[0])
+        sys.exit(1)
     return bookedSeatsList
 
 
@@ -113,8 +122,8 @@ def update_seat(booking_name, row_num, column_num):
         SQL_CONN.commit()
     
     except sqlite3.Error as e:
-            print("Error in Updating Passenger Details",e.args)
-
+            print("Error in Updating Passenger Details- " + e.args[0])
+            sys.exit(1)
     return
 
 
@@ -130,26 +139,36 @@ def update_metrics():
         SQL_CONN.commit()
     
     except sqlite3.Error as e:
-            print("Error in Updating Passenger Metrics",e.args)
-             
+            print("Error in Updating Passenger Metrics - " + e.args[0])
+            sys.exit(1) 
     return
         
 
-#Setup Environment for Airbus
-def setup_airbus_layout(total_rows=15, total_seats=4, bookedSeatsList=None ):
-    airbus_seat_layout = get_airbus_seat_layout(total_rows, total_seats)
-    total_free_seats = np.sum(airbus_seat_layout[:,0])
-    for seat in bookedSeatsList:
-#        print(seat)
-        airbus_seat_layout[seat]= -1
-        airbus_seat_layout[seat[0],0] -=1
-        total_free_seats -= 1
-#    print(airbus_seat_layout)
-    return airbus_seat_layout, total_free_seats
+
+def setup_airbus_layout(total_rows, total_seats, bookedSeatsList=None ):
+    '''
+    Setup Environment for Airbus
+    '''
+    if(total_rows >0 and total_seats > 0):
+        airbus_seat_layout = get_airbus_seat_layout(total_rows, total_seats)
+        total_free_seats = np.sum(airbus_seat_layout[:,0])
+        for seat in bookedSeatsList:
+            airbus_seat_layout[seat]= -1
+            airbus_seat_layout[seat[0],0] -=1
+            total_free_seats -= 1
+        return airbus_seat_layout, total_free_seats
+    else:
+        print("Error in airbus layout : total rows - " + total_rows + \
+              " total seats - " + total_rows)
+        sys.exit(1)
  
     
-#Function to fetch Airbus seat Layout
-def get_airbus_seat_layout(total_rows=15, total_seats=4):
+
+def get_airbus_seat_layout(total_rows, total_seats):
+    '''
+    Function to setup Airbus seat Layout in memory
+    checks done in parent function
+    '''
     airbus_seat_layout = np.zeros((total_rows,total_seats+1),dtype=np.int)
     airbus_seat_layout[:,0] = total_seats
     return airbus_seat_layout    
@@ -157,10 +176,18 @@ def get_airbus_seat_layout(total_rows=15, total_seats=4):
       
 #Function to fetch the booking details from csv file
 def read_csv(filename):
-    bookings_temp_df=pd.read_csv(filename, names=['booking_name','booking_count'])
-    return bookings_temp_df
-    #bookings_df= pd.read_csv(filename)
-
+    try:
+        # names list help to read only two columns in the file
+        # error bad lines parameter helps to ignore bad rows
+        bookings_temp_df=pd.read_csv(filename, names=['booking_name','booking_count'],  \
+                                     error_bad_lines = False)
+        return bookings_temp_df
+        
+    except Exception as e:
+        print("Unhandled exception occured on reading bookings file - " + e.args[0])
+        sys.exit(1)
+    
+    
 
 #Function to allocate seats for the bookings
 def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
@@ -209,54 +236,75 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
     return total_free_seats,airbus_seat_layout
 
     
-#Main functoin to invoke other functions to start booking process
+
 def main():
-    
+    """
+    Main function to invoke other functions to start booking process
+    """    
     try:
-        #Input Processing from input file
+        
         if(len(sys.argv) == 3):
             
+            # load file names to global variables after doing basic checks
             global PASSENGERS_REFUSED, PASSENGERS_SEPARATED
             
-            database_name= sys.argv[1]
-            filename= sys.argv[2]
-            
+            if(Path(sys.argv[1]).is_file()):
+                database_name= sys.argv[1]
+            else:
+                raise IOError( sys.argv[1] + " file not available.")
+        
+            if(Path(sys.argv[2]).is_file()):
+                filename= sys.argv[2]
+            else:
+                raise IOError( sys.argv[2] + " file not available.")
+                
+            #Establish connection to database name
             get_connection(database_name)
             
-            #Load data from database 
+            #Load data from database to memory
             get_rows_cols()
             
             get_metrics()
             
             bookedSeatsList = get_booked_seats()
             
-            global FLIGHT_NROWS, FLIGHT_SEATS         
+            
             #Create airbus layout in memory 
+            global FLIGHT_NROWS, FLIGHT_SEATS         
             airbus_seat_layout,total_free_seats=setup_airbus_layout(FLIGHT_NROWS, \
                                             len(FLIGHT_SEATS), bookedSeatsList )
-        #        print(airbus_seat_layout,total_free_seats)
+
                 
             #Import bookings.CSV file
             bookings_df=read_csv(filename)
                 
             for index,row in bookings_df.iterrows():
+                # if any of the rows contain bad data, then skip
+#                if(math.isnan(str(row['boooking_count'])) or \
+#                                       math.isnan(str(row['boooking_name']))):
+#                    continue
+                
                 if total_free_seats >= row['booking_count']:
-        #            print(index+1, row['booking_name'], row['booking_count'])
-                    total_free_seats,airbus_seat_layout=allocate_seats(index+1,row,total_free_seats,airbus_seat_layout)
-        #                print(total_free_seats,airbus_seat_layout)
+                    total_free_seats,airbus_seat_layout=allocate_seats(index+1, \
+                                    row,total_free_seats,airbus_seat_layout)
                 else:
-        #                print(index+1,row['booking_count'],"Seats not available to complete booking")
+        
                     PASSENGERS_REFUSED += 1
             
             print(airbus_seat_layout)
+            
+            # update metrics at the end
             update_metrics()
         
         else:
             print("Error - Invalid Arguments Passed")
             print("Correct Usage: python seat_assign_16201018__16200107_16203106.py *.db *.csv")
 
+    except IOError as err:
+        print("IO Error occured - "+ err.args[0])
+    
     except Exception as err:
-        print("Error occured.", err.args)
+        print("Unknow Error occured - " + err.args[0])
         
     return
     
