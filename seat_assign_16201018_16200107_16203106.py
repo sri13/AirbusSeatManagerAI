@@ -233,6 +233,10 @@ def allocate_seats(index, row, total_free_seats,airbus_seat_layout):
         if(booking_count !=0):
             first_row = 0
             prev_row = 0
+            
+            if(booking_count<row['booking_count']):
+                PASSENGERS_SEPARATED += 1 
+            
             for each_row in range(airbus_seat_layout.shape[0]):
                 if(booking_count!=0 and airbus_seat_layout[each_row][0]!=0):
                     for each_column in range(airbus_seat_layout.shape[1]):

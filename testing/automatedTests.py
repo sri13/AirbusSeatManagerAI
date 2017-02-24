@@ -27,7 +27,7 @@ def automated_tests():
     >>> sys.argv.append('test_cases/Test_Case_1.csv')
     >>> seat_assign_16201018_16200107_16203106.main()
     Passegners refused :  0
-    Passengers separated:  1
+    Passengers separated:  0
     Thank you for Booking with UCD Airlines.!
     
     >>> sys.argv[1]='database/Test_DB_2.db'
