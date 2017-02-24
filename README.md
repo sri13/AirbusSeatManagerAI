@@ -31,6 +31,7 @@ We try to allocate seats alongside the greatest number of passengers possible.
 After every booking, the database is updated with the number of number of passengers separated and number of passengers refused.
 
 Testing:
+
 Initially, the code is testing is performed to check proper functioning of the code. Acceptance testing is done by providing proper input to the system to check for its working nature. Next is Functional Testing in which the components of the code are tested to check every functionality of the code.
 Negative Testing is also performed to check for the worst case scenarios in the system.In this case, parameters like negative and empty values in the booking are tested to check for the proper working of code.
 
