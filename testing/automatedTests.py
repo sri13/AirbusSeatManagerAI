@@ -33,7 +33,7 @@ def automated_tests():
     >>> sys.argv[1]='database/Test_DB_2.db'
     >>> sys.argv[2]='test_cases/Test_Case_2.csv'
     >>> seat_assign_16201018_16200107_16203106.main()
-    IO Error occured - testing\test_cases\Test_Case_2.csv file not available.
+    IO Error occured - test_cases\Test_Case_2.csv file not available.
     
     '''     
     return
@@ -42,4 +42,4 @@ def automated_tests():
     
 if __name__ == "__main__":
     import doctest
-    doctest.testmod(verbose=False)
+    doctest.testmod(verbose=True)
